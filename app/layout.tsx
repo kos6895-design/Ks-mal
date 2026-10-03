@@ -4,26 +4,11 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "MALINA · Бар",
   description: "Заказы, бар и кухня, склад и контроль смены",
-  other: {
-    "codex-preview": "development",
-  },
   manifest: "/manifest.webmanifest",
   appleWebApp: { capable: true, title: "MALINA Бар", statusBarStyle: "black-translucent" },
-  icons: {
-    icon: "/icon-192.png",
-    apple: "/apple-touch-icon.png",
-    shortcut: "/icon-192.png",
-  },
+  icons: { icon: "/favicon.svg", shortcut: "/favicon.svg" },
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
-  return (
-    <html lang="ru">
-      <body className="antialiased">{children}</body>
-    </html>
-  );
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  return <html lang="ru"><body>{children}</body></html>;
 }
