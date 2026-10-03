@@ -1,14 +1,13 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "malina-bar",
-  "main": "build/cloudflare-worker.ts",
+  "main": "worker-direct.js",
   "compatibility_date": "2026-05-15",
-  "compatibility_flags": ["nodejs_compat"],
   "workers_dev": true,
   "d1_databases": [{
     "binding": "DB",
     "database_name": "malina-bar-db",
-    "database_id": "1e2ffc1c-1fc6-4003-b688-1448c3535e10",
-    "migrations_dir": "drizzle"
-  }]
+    "database_id": "1e2ffc1c-1fc6-4003-b688-1448c3535e10"
+  }],
+  "vars": { "SETUP_KEY": "MALINA-SETUP-2026" }
 }
