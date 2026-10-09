@@ -2,23 +2,31 @@ import fs from 'node:fs';
 const p='worker-direct.js';
 let s=fs.readFileSync(p,'utf8');
 
-const navStart=s.indexOf('function nav(u){');
-const navEnd=s.indexOf('\nasync function page(',navStart);
-if(navStart<0||navEnd<0)throw Error('nav markers missing');
-const nav=`function nav(u){
-  if(!isAdmin(u))return '<div class="nav"><div class="nav-title">БАР</div><a href="/?view=overview">Обзор</a><a href="/?view=orders">Заказы</a><a href="/?view=prep">Приготовление</a></div>';
-  if(u.role==='hall_admin')return '<div class="nav"><div class="nav-title">БАР</div><a href="/?view=overview">Обзор</a><a href="/?view=orders">Заказы</a><a href="/?view=prep">Приготовление</a><a href="/?view=stock">Склад</a><a href="/?view=inventory">Инвентаризация</a><div class="nav-title">ЗАЛ</div><a href="/?view=shiftcalc">Текущая смена</a><a href="/?view=shiftlist">Список смен</a></div>';
-  let x='<div class="nav"><div class="nav-title">БАР</div><a href="/?view=overview">Обзор</a><a href="/?view=orders">Заказы</a><a href="/?view=prep">Приготовление</a><a href="/?view=stock">Склад</a><a href="/?view=purchaseprices">Закупочные цены</a><a href="/?view=inventory">Инвентаризация</a><a href="/?view=menu">Меню</a><a href="/?view=recipes">Техкарты</a><div class="nav-title">ЗАЛ</div><a href="/?view=shiftcalc">Текущая смена</a><a href="/?view=shiftlist">Список смен</a><div class="nav-title">СТАТИСТИКА</div><a href="/?view=stats">Бар</a><a href="/?view=coststats">Себестоимость смен</a><a href="/?view=productusage">Расход продуктов</a><a href="/?view=shiftstats">Расчёт смен</a>';
-  if(u.role==='admin')x+='<div class="nav-title">АДМИНИСТРИРОВАНИЕ</div><a href="/?view=staff">Сотрудники</a><a href="/?view=audit">Действия сотрудников</a>';
-  return x+'</div>';
-}`;
-s=s.slice(0,navStart)+nav+s.slice(navEnd);
+const oldTab=`tab=t=>n(t.end)-n(t.start)`;
+const newTab=`tab=t=>(n(t.ie??t.end)-n(t.is??t.start))-(n(t.oe)-n(t.os))`;
+if(!s.includes(oldTab))throw Error('table formula marker missing');
+s=s.replace(oldTab,newTab);
 
-const old=`if(view==='shiftlist'&&isAdmin(u)){let closed=(s.shifts||[]).filter(x=>x.closed).slice().reverse();`;
-const neu=`if(view==='shiftlist'&&isAdmin(u)){let closed=(s.shifts||[]).filter(x=>x.closed).slice().reverse();if(u.role==='hall_admin')closed=closed.slice(0,2);`;
-if(!s.includes(old))throw Error('shiftlist marker missing');
-s=s.replace(old,neu);
+const oldTables=`<div class="card"><h3>Столы 1–6</h3>'+(show.tables||[]).map((t,i)=>'<div class="row"><b class="grow">Стол '+(i+1)+'</b><input name="ts'+i+'" type="number" step="any" value="'+n(t.start)+'" '+(lock?'disabled':'')+'><span>→</span><input name="te'+i+'" type="number" step="any" value="'+n(t.end)+'" '+(lock?'disabled':'')+'><b>'+fmt(tab(t))+'</b></div>').join('')+'</div>`;
+const newTables=`<div class="card"><h3>Столы 1–6</h3><div class="muted">Логика как в приложении: IN = конец − начало, OUT = конец − начало, результат = IN − OUT.</div>'+(show.tables||[]).map((t,i)=>'<div class="row"><b>Стол '+(i+1)+'</b><span>IN</span><input name="tis'+i+'" type="number" step="any" value="'+n(t.is??t.start)+'" '+(lock?'disabled':'')+'><input name="tie'+i+'" type="number" step="any" value="'+n(t.ie??t.end)+'" '+(lock?'disabled':'')+'><span>OUT</span><input name="tos'+i+'" type="number" step="any" value="'+n(t.os)+'" '+(lock?'disabled':'')+'><input name="toe'+i+'" type="number" step="any" value="'+n(t.oe)+'" '+(lock?'disabled':'')+'><b>'+fmt(tab(t))+'</b></div>').join('')+'</div>`;
+if(!s.includes(oldTables))throw Error('tables UI marker missing');
+s=s.replace(oldTables,newTables);
 
-if(!s.includes("if(u.role==='hall_admin')return")||!s.includes("closed=closed.slice(0,2)"))throw Error('hall admin access patch incomplete');
+const oldButton=`+(!lock?'<div class="card"><button class="btn primary full">✓ Принять изменения</button></div>':'')+'</form>';`;
+const newButton=`+(!lock?'<div class="card"><div class="muted" id="autosaveState">Изменения сохраняются автоматически</div></div>':'')+'</form>'+(!lock?'<script>(()=>{const f=document.querySelector(\'form input[name="type"][value="calcSave"]\')?.form;if(!f)return;let timer;const state=document.getElementById("autosaveState");const save=()=>{clearTimeout(timer);timer=setTimeout(async()=>{state.textContent="Сохраняю…";try{await fetch("/action",{method:"POST",body:new FormData(f),credentials:"same-origin"});state.textContent="✓ Сохранено автоматически"}catch(e){state.textContent="Ошибка сохранения"}},450)};f.querySelectorAll("input,select,textarea").forEach(el=>{if(el.type!=="hidden")el.addEventListener("input",save);el.addEventListener("change",save)})})()</script>':'');`;
+if(!s.includes(oldButton))throw Error('save button marker missing');
+s=s.replace(oldButton,newButton);
+
+const oldOpen=`tables:Array.from({length:6},(_,i)=>({start:p?.tables?.[i]?.end||0,end:p?.tables?.[i]?.end||0}))`;
+const newOpen=`tables:Array.from({length:6},(_,i)=>{let q=p?.tables?.[i]||{},ie=q.ie??q.end??0,oe=q.oe??0;return{is:ie,ie,os:oe,oe}})`;
+if(!s.includes(oldOpen))throw Error('table open marker missing');
+s=s.replace(oldOpen,newOpen);
+
+const oldSave=`x.tables[i]={start:num('ts'+i),end:num('te'+i)}`;
+const newSave=`x.tables[i]={is:num('tis'+i),ie:num('tie'+i),os:num('tos'+i),oe:num('toe'+i)}`;
+if(!s.includes(oldSave))throw Error('table save marker missing');
+s=s.replace(oldSave,newSave);
+
+if(!s.includes('Сохранено автоматически')||!s.includes("name=\"tis'+i+'\"")||!s.includes("x.tables[i]={is:num('tis'+i)"))throw Error('shift autosave/table patch incomplete');
 fs.writeFileSync(p,s);
-console.log('Hall admin navigation and shift history limited');
+console.log('Shift autosave and table logic applied');
