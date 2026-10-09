@@ -6,12 +6,23 @@ on:
     branches: [main]
     paths:
       - 'worker-direct.js'
+      - '.github/workflows/deploy-cloudflare.yml'
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Fix generated admin syntax
+        run: |
+          python3 - <<'PY'
+          p='worker-direct.js'
+          s=open(p,encoding='utf-8').read()
+          s=s.replace("confirm(\\\\'Удалить сотрудника?\\\\')", 'confirm(&quot;Удалить сотрудника?&quot;)')
+          s=s.replace("confirm(\\\\'Удалить инвентаризацию?\\\\')", 'confirm(&quot;Удалить инвентаризацию?&quot;)')
+          open(p,'w',encoding='utf-8').write(s)
+          PY
+          node --check worker-direct.js
       - name: Deploy Worker
         uses: cloudflare/wrangler-action@v3
         with:
