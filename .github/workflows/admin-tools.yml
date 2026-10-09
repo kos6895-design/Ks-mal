@@ -1,0 +1,22 @@
+name: MALINA admin tools
+on:
+  push:
+    paths:
+      - 'scripts/admin-tools.mjs'
+      - '.github/workflows/admin-tools.yml'
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply admin tools
+        run: node scripts/admin-tools.mjs
+      - name: Commit upgraded worker
+        run: |
+          git config user.name "malina-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add worker-direct.js
+          git diff --cached --quiet || git commit -m "Add employee audit and admin deletion tools"
+          git push
