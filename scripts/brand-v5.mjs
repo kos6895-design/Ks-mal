@@ -1,0 +1,12 @@
+import fs from 'node:fs';
+const p='worker-direct.js';let s=fs.readFileSync(p,'utf8');
+if(s.includes('MALINA_BRAND_V5'))process.exit(0);
+const b64=fs.readFileSync('assets/malina-logo.b64','utf8').trim();
+const uri='data:image/jpeg;base64,'+b64;
+s=s.replace(".brand{font-family:Georgia,serif;font-size:23px;font-weight:700;letter-spacing:5px;color:#f5d58b;text-shadow:0 1px 8px #b57a24}",".brand{display:flex;align-items:center;gap:10px;font-family:Georgia,serif;font-size:21px;font-weight:700;letter-spacing:4px;color:#f5d58b;text-shadow:0 1px 8px #b57a24}.brand-logo{width:42px;height:42px;border-radius:11px;object-fit:cover;border:1px solid #d6a74c;box-shadow:0 0 14px #c9953a55}.nav-logo{width:112px;height:112px;object-fit:cover;border-radius:24px;border:1px solid #b98a3c;box-shadow:0 8px 28px #000;margin:2px auto 8px;display:block}");
+s=s.replace(".nav:before{content:'MALINA';display:block;font-family:Georgia,serif;font-size:24px;letter-spacing:5px;text-align:center;color:#f3cf7b;padding:8px 0 16px;border-bottom:1px solid #5f4825;margin-bottom:6px}",".nav:before{display:none}");
+s=s.replace("<div class=\"top\"><div class=\"brand\">MALINA</div>","<div class=\"top\"><div class=\"brand\"><img class=\"brand-logo\" src=\""+uri+"\" alt=\"MALINA\">MALINA</div>");
+s=s.replace("function nav(u){if(!isAdmin(u))return '<div class=\"nav\">","function nav(u){let logo='<img class=\"nav-logo\" src=\""+uri+"\" alt=\"MALINA\">';if(!isAdmin(u))return '<div class=\"nav\">'+logo+");
+s=s.replace("return '<div class=\"nav\"><div class=\"nav-title\">Бар</div>","return '<div class=\"nav\">'+logo+'<div class=\"nav-title\">Бар</div>");
+s+='\n/* MALINA_BRAND_V5 */\n';
+fs.writeFileSync(p,s);console.log('MALINA brand V5 applied');
