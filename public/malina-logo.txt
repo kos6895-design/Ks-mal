@@ -1,0 +1,1 @@
+Logo source is the MALINA Coffee & Kitchen black/gold raspberry artwork supplied by the owner. Binary artwork is embedded into worker-direct.js by the branding upgrade script during deployment.
