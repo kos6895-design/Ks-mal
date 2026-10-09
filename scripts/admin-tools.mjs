@@ -1,20 +1,10 @@
 import fs from 'node:fs';
 const p='worker-direct.js';
 let s=fs.readFileSync(p,'utf8');
-
-const navOld=`<a href="/?view=stats">Бар</a><a href="/?view=expensestats">Расходы</a><a href="/?view=coststats">Себестоимость смен</a>`;
-const navNew=`<a href="/?view=stats">Бар</a><a href="/?view=coststats">Себестоимость смен</a>`;
-if(!s.includes(navOld))throw Error('statistics nav marker missing');
-s=s.replace(navOld,navNew);
-
-const start=s.indexOf(`if(view==='stats'&&isAdmin(u)){`);
-const end=s.indexOf(`if(view==='shiftlist'&&isAdmin(u)){`,start);
-if(start<0||end<0)throw Error('stats block markers missing');
-const block=`if(view==='stats'&&isAdmin(u)){let from=url.searchParams.get('from')||'',to=url.searchParams.get('to')||'',sid=url.searchParams.get('shift')||'',norm=v=>v?new Date(v).getTime():null,ft=norm(from),tt=norm(to),closed=(s.shifts||[]).filter(x=>x.closed&&(!ft||new Date(x.opened).getTime()>=ft)&&(!tt||new Date(x.opened).getTime()<=tt)&&(!sid||x.id===sid)).slice().reverse(),sumRevenue=0,sumExpenses=0;let cards=closed.map(x=>{let os=(s.orders||[]).filter(o=>o.shiftId===x.id),active=os.filter(o=>!o.cancelled),rev=active.filter(o=>o.paid&&!o.bonus).reduce((n,o)=>n+tot(o),0),ee=(s.barExpenses||[]).filter(e=>e.shiftId===x.id),ex=ee.reduce((n,e)=>n+(Number(e.amount)||0),0),result=rev-ex;sumRevenue+=rev;sumExpenses+=ex;return '<details class="card"><summary><b>'+E(String(x.opened||'').replace('T',' ').slice(0,16))+' → '+E(String(x.closed||'').replace('T',' ').slice(0,16))+'</b><div class="muted">Выручка '+money(rev)+' · Расходы '+money(ex)+' · Результат '+money(result)+'</div></summary><div class="grid"><div class="card"><div class="muted">Выручка</div><div class="big">'+money(rev)+'</div></div><div class="card"><div class="muted">Расходы</div><div class="big">'+money(ex)+'</div></div><div class="card"><div class="muted">Результат</div><div class="big">'+money(result)+'</div></div></div><h3>Расходы смены</h3>'+(ee.map(e=>'<div class="row"><div class="grow"><b>'+E(e.name)+'</b><div class="muted">'+E(e.who||'')+' · '+E(String(e.at||'').replace('T',' ').slice(0,16))+'</div></div><b>'+money(Number(e.amount)||0)+'</b></div>').join('')||'<div class="muted">Расходов нет</div>')+'<h3>Заказы смены</h3>'+(os.slice().reverse().map(o=>'<div class="row"><div class="grow"><b>'+E(o.table||'Заказ')+'</b><div class="muted">'+E(o.employee||'')+' · '+E(String(o.created||'').replace('T',' ').slice(0,16))+(o.cancelled?' · отменён':o.bonus?' · бонусный':o.paid?' · оплачен':'')+'</div></div><b>'+money(o.cancelled||o.bonus?0:tot(o))+'</b></div>').join('')||'<div class="muted">Заказов нет</div>')+(u.role==='admin'?'<form class="admin-delete" method="post" action="/action" onsubmit="return confirm(&quot;Удалить смену бара?&quot;)"><input type="hidden" name="type" value="adminDeleteBarShift"><input type="hidden" name="id" value="'+E(x.id)+'"><input name="comment" placeholder="Причина удаления" required><button class="btn danger">Удалить смену</button></form>':'')+'</details>'}).join('');body+='<div class="card"><h2>Завершённые смены бара</h2><div class="muted">Откройте смену, чтобы посмотреть её выручку, расходы, результат и заказы.</div><form class="inline" method="get"><input type="hidden" name="view" value="stats"><label>С <input name="from" type="datetime-local" value="'+E(from)+'"></label><label>По <input name="to" type="datetime-local" value="'+E(to)+'"></label><select name="shift"><option value="">Все завершённые смены</option>'+s.shifts.filter(x=>x.closed).slice().reverse().map(x=>'<option value="'+E(x.id)+'" '+(sid===x.id?'selected':'')+'>'+E(String(x.opened||'').replace('T',' ').slice(0,16))+' → '+E(String(x.closed||'').replace('T',' ').slice(0,16))+'</option>').join('')+'</select><button class="btn primary">Показать</button><a class="btn" href="/?view=stats">Сбросить</a></form></div><div class="grid"><div class="card"><div class="muted">Завершённых смен</div><div class="big">'+closed.length+'</div></div><div class="card"><div class="muted">Выручка</div><div class="big">'+money(sumRevenue)+'</div></div><div class="card"><div class="muted">Расходы</div><div class="big">'+money(sumExpenses)+'</div></div><div class="card"><div class="muted">Результат</div><div class="big">'+money(sumRevenue-sumExpenses)+'</div></div></div>'+(cards||'<div class="card muted">Завершённых смен за выбранный период нет</div>')}
-`;
-s=s.slice(0,start)+block+s.slice(end);
-
-if(s.includes(`<a href="/?view=expensestats">Расходы</a>`))throw Error('expenses nav still present');
-if(!s.includes('Завершённые смены бара')||!s.includes('Результат'))throw Error('bar stats patch incomplete');
+const old=`if(sh&&canOperate(u)){let ee=(s.barExpenses||[]).filter(e=>e.shiftId===sh.id)`;
+const neu=`if(view==='overview'&&sh&&canOperate(u)){let ee=(s.barExpenses||[]).filter(e=>e.shiftId===sh.id)`;
+if(!s.includes(old))throw Error('expense form marker missing');
+s=s.replace(old,neu);
+if(!s.includes(neu))throw Error('expense form scope patch incomplete');
 fs.writeFileSync(p,s);
-console.log('Bar statistics simplified');
+console.log('Expense entry limited to overview');
