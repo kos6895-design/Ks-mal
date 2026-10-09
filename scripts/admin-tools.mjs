@@ -2,29 +2,20 @@ import fs from 'node:fs';
 const p='worker-direct.js';
 let s=fs.readFileSync(p,'utf8');
 
-s=s.replace('<a href="/?view=stock">Склад</a><a href="/?view=inventory">Инвентаризация</a>', '<a href="/?view=stock">Склад</a><a href="/?view=purchaseprices">Закупочные цены</a><a href="/?view=inventory">Инвентаризация</a>');
-s=s.replace('<div class="nav-title">СТАТИСТИКА</div><a href="/?view=stats">Бар</a><a href="/?view=shiftstats">Расчёт смен</a>', '<div class="nav-title">СТАТИСТИКА</div><a href="/?view=stats">Бар</a><a href="/?view=coststats">Себестоимость смен</a><a href="/?view=shiftstats">Расчёт смен</a>');
+// Add date/time filter to cost statistics already installed in worker.
+const oldCost="if(view==='coststats'&&isAdmin(u)){let rows=(s.shifts||[]).slice().reverse().map(x=>";
+const newCost="if(view==='coststats'&&isAdmin(u)){let from=url.searchParams.get('from')||'',to=url.searchParams.get('to')||'',norm=v=>v?new Date(v).getTime():null,fromTs=norm(from),toTs=norm(to),inRange=d=>{let t=new Date(d).getTime();return(!fromTs||t>=fromTs)&&(!toTs||t<=toTs)},rows=(s.shifts||[]).filter(x=>inRange(x.opened)).slice().reverse().map(x=>";
+if(s.includes(oldCost))s=s.replace(oldCost,newCost);
 
-if(!s.includes("view==='purchaseprices'")){
- const marker=" if(view==='inventory'){";
- const page=` if(view==='purchaseprices'&&isAdmin(u)){body+='<div class="card"><h2>Закупочные цены</h2><div class="muted">Укажите закупочный объём/количество и его цену. Цена единицы рассчитывается автоматически.</div></div><div class="card">'+s.ingredients.map(i=>{let pp=i.purchase||{},pack=Number(pp.packQty||0),price=Number(pp.price||0),uc=pack>0?price/pack:0;return '<form class="row" method="post" action="/action"><input type="hidden" name="type" value="purchasePrice"><input type="hidden" name="id" value="'+E(i.id)+'"><div class="grow"><b>'+E(i.name)+'</b><div class="muted">'+E(i.unit)+' · за 1 '+E(i.unit)+': '+(uc?money(uc):'не задано')+'</div></div><input name="packQty" type="number" min="0.001" step="0.001" placeholder="Объём / количество" value="'+(pack||'')+'" '+(u.role==='admin'?'':'disabled')+' required><input name="price" type="number" min="0" step="0.01" placeholder="Цена, ₽" value="'+(price||'')+'" '+(u.role==='admin'?'':'disabled')+' required>'+(u.role==='admin'?'<button class="btn primary">Сохранить</button>':'')+'</form>'}).join('')+'</div>'}\n`;
- if(!s.includes(marker))throw Error('inventory marker missing'); s=s.replace(marker,page+marker);
-}
+const oldHead="body+='<div class=\"card\"><h2>Себестоимость смен</h2><div class=\"muted\">По фактически использованным продуктам из техкарт.</div></div><div class=\"grid\">";
+const newHead="body+='<div class=\"card\"><h2>Себестоимость смен</h2><div class=\"muted\">По фактически использованным продуктам из техкарт.</div><form class=\"inline\" method=\"get\"><input type=\"hidden\" name=\"view\" value=\"coststats\"><label>С <input name=\"from\" type=\"datetime-local\" value=\"'+E(from)+'\"></label><label>По <input name=\"to\" type=\"datetime-local\" value=\"'+E(to)+'\"></label><button class=\"btn primary\">Показать</button><a class=\"btn\" href=\"/?view=coststats\">Сбросить</a></form></div><div class=\"grid\">";
+if(s.includes(oldHead))s=s.replace(oldHead,newHead);
 
-if(!s.includes("view==='coststats'")){
- const marker="if(view==='stats'&&isAdmin(u)){";
- const page=`if(view==='coststats'&&isAdmin(u)){let rows=(s.shifts||[]).slice().reverse().map(x=>{let os=(s.orders||[]).filter(o=>o.shiftId===x.id&&!o.cancelled),revenue=os.filter(o=>o.paid&&!o.bonus).reduce((n,o)=>n+tot(o),0),cost=0;for(let o of os)for(let l of (o.lines||[])){if(!['ready','served'].includes(l.status))continue;for(let [iid,q] of (l.recipe||[])){let ing=s.ingredients.find(z=>z.id===iid),pp=ing?.purchase||{},pack=Number(pp.packQty||0),price=Number(pp.price||0);if(pack>0)cost+=(Number(q)||0)*(Number(l.qty)||0)*(price/pack)}}return{x,revenue,cost,net:revenue-cost}}),tr=rows.reduce((n,r)=>n+r.revenue,0),tc=rows.reduce((n,r)=>n+r.cost,0);body+='<div class="card"><h2>Себестоимость смен</h2><div class="muted">По фактически использованным продуктам из техкарт.</div></div><div class="grid"><div class="card"><div class="muted">Общая выручка смен</div><div class="big">'+money(tr)+'</div></div><div class="card"><div class="muted">Себестоимость смен</div><div class="big">'+money(tc)+'</div></div><div class="card"><div class="muted">Выручка</div><div class="big">'+money(tr-tc)+'</div></div></div><div class="card">'+(rows.map(r=>'<div class="row"><div class="grow"><b>'+E(String(r.x.opened||'').replace('T',' ').slice(0,16))+'</b><div class="muted">'+(r.x.closed?'Закрыта':'Открыта')+'</div></div><div>Общая выручка: <b>'+money(r.revenue)+'</b><br>Себестоимость: <b>'+money(r.cost)+'</b><br>Выручка: <b>'+money(r.net)+'</b></div></div>').join('')||'<div class="muted">Смен пока нет</div>')+'</div>'}\n`;
- if(!s.includes(marker))throw Error('stats marker missing'); s=s.replace(marker,page+marker);
-}
+// Make opening cash block easier to understand.
+s=s.replace('<div class="card"><h3>Касса на начало смены</h3><div class="muted">Укажите количество купюр/монет каждого номинала</div>', '<div class="card"><h3>Наличные в кассе на начало смены</h3><div class="muted">В каждой строке укажите количество купюр или монет. Справа автоматически показана сумма по этому номиналу.</div>');
+s=s.replace('<div class="row"><b class="grow">Итого в кассе на начало смены</b><b>', '<div class="row"><b class="grow">💰 Общая сумма наличных на начало смены</b><b class="big">');
 
-if(!s.includes("t==='purchasePrice'")){
- const marker="if(t==='adminDeleteBarShift'){";
- const handler=`if(t==='purchasePrice'){if(u.role!=='admin')throw Error('Только главный администратор может менять закупочные цены');let i=s.ingredients.find(x=>x.id===f.get('id'));if(!i)throw Error('Позиция склада не найдена');let packQty=Number(f.get('packQty')),price=Number(f.get('price'));if(!Number.isFinite(packQty)||packQty<=0)throw Error('Укажите объём или количество');if(!Number.isFinite(price)||price<0)throw Error('Укажите цену');i.purchase={packQty,price,updatedAt:new Date().toISOString(),updatedBy:u.name};s.logs=s.logs||[];s.logs.unshift({id:U(),at:new Date().toISOString(),who:u.name,text:'Закупочная цена: '+i.name+' · '+packQty+' '+i.unit+' = '+price+' ₽'});}else `;
- if(!s.includes(marker))throw Error('action marker missing'); s=s.replace(marker,handler+marker);
-}
-
-if(!s.includes("view==='purchaseprices'"))throw Error('purchase page missing');
-if(!s.includes("view==='coststats'"))throw Error('cost stats missing');
-if(!s.includes("t==='purchasePrice'"))throw Error('handler missing');
+if(!s.includes("name=\"from\" type=\"datetime-local\"")||!s.includes("view=\"coststats\""))throw Error('cost filter missing');
+if(!s.includes('Общая сумма наличных на начало смены'))throw Error('opening cash label missing');
 fs.writeFileSync(p,s);
-console.log('Purchase prices and cost statistics applied');
+console.log('Cost date/time filter and clearer opening cash applied');
