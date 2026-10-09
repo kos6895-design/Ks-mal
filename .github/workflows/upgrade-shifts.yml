@@ -1,0 +1,22 @@
+name: Upgrade MALINA shifts
+on:
+  push:
+    paths:
+      - 'scripts/upgrade-shifts.mjs'
+      - '.github/workflows/upgrade-shifts.yml'
+permissions:
+  contents: write
+jobs:
+  upgrade:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply shift upgrade
+        run: node scripts/upgrade-shifts.mjs
+      - name: Commit upgraded worker
+        run: |
+          git config user.name "malina-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add worker-direct.js
+          git diff --cached --quiet || git commit -m "Upgrade shift section and sidebar navigation"
+          git push
