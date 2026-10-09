@@ -23,4 +23,4 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: 732eca868669abfd15b245df62cf7573
           command: deploy --config wrangler.json
-      # Deployment marker: admin-only deletion for bar and calculation shifts.
+      # Deployment marker: cost filter and clearer opening cash UI.
