@@ -45,7 +45,7 @@ if(view==='inventory'&&u.role==='admin'){
           '<div class="muted">'+E(x.who||"")+'</div>'+
         '</div>'+
         '<form class="admin-delete" method="post" action="/action" '+
-        'onsubmit="return confirm(\\'Удалить инвентаризацию?\\')">'+
+        'onsubmit="return confirm(&quot;Удалить инвентаризацию?&quot;)">'+
           '<input type="hidden" name="type" value="adminDeleteInventory">'+
           '<input type="hidden" name="key" value="'+E(x.at)+'">'+
           '<input name="comment" placeholder="Причина удаления" required>'+
@@ -132,3 +132,5 @@ if(t==='adminDeleteShift'){
 async function exportStats(req,env){let u=await usr(req,env);if(!isAdmin(u))return new Response('Нет доступа',{status:403});let row=await st(env);if(!row)return new Response('Нет данных',{status:404});let s=row.state,url=new URL(req.url),from=url.searchParams.get('from')||'',to=url.searchParams.get('to')||'',sid=url.searchParams.get('shift')||'',norm=v=>v?new Date(v).getTime():null,fromTs=norm(from),toTs=norm(to),inRange=d=>{let t=new Date(d).getTime();return(!fromTs||t>=fromTs)&&(!toTs||t<=toTs)};let shifts=s.shifts.filter(x=>inRange(x.opened)&&(!sid||x.id===sid)),ids=new Set(shifts.map(x=>x.id)),orders=s.orders.filter(o=>ids.has(o.shiftId)),rows=[['Тип','ID смены','Дата/время','Стол','Сотрудник','Статус','Бонус','Сумма']];for(let o of orders)rows.push(['Заказ',o.shiftId,o.created,o.table,o.employee,o.cancelled?'Отменён':o.paid?'Оплачен':'Не оплачен',o.bonus?'Да':'Нет',(o.bonus||o.cancelled)?0:tot(o)]);rows.push([]);rows.push(['Смена','Открыта','Закрыта','Начальная касса','Фактическая касса']);for(let x of shifts)rows.push([x.id,x.opened,x.closed||'',x.openingCash??'',x.actualCash??'']);rows.push([]);rows.push(['Инвентаризации']);for(let inv of (s.inventories||[]).filter(x=>inRange(x.at))){rows.push([inv.at,inv.who]);rows.push(['Позиция','Ожидалось','Факт','Разница','Ед.']);for(let r of inv.rows)rows.push([r.name,r.expected,r.actual,r.difference,r.unit]);rows.push([])}let esc=v=>'"'+String(v??'').replace(/"/g,'""')+'"',csv='\ufeff'+rows.map(r=>r.map(esc).join(';')).join('\r\n');return new Response(csv,{headers:{'content-type':'text/csv;charset=utf-8','content-disposition':'attachment; filename="malina-statistics.csv"'}})}
 export default{async fetch(req,env){let url=new URL(req.url);if(req.method==='GET'&&url.pathname==='/export')return exportStats(req,env);if(req.method==='POST'&&url.pathname==='/auth')return auth(req,env);if(req.method==='POST'&&url.pathname==='/action')return action(req,env);return page(req,env,url)}};
 /* MALINA_BRAND_V5 */
+
+/* MALINA_DEPLOY_FIX_20261010 */
