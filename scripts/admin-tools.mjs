@@ -18,11 +18,16 @@ const navNeedle =
 
 must(s.includes(navNeedle), 'navigation anchor not found');
 
-s = s.replace(
-  navNeedle,
-  '<div class="nav-title">СТАТИСТИКА</div><a href="/?view=stats">Бар</a><a href="/?view=shiftstats">Расчёт смен</a>' +
-  '\'+(u.role===\\\'admin\\\'?\\\'<div class="nav-title">АДМИНИСТРИРОВАНИЕ</div><a href="/?view=staff">Сотрудники</a><a href="/?view=audit">Действия сотрудников</a>\\\':\\\'\\')+\\\'</div>'
-);
+const adminNav =
+  '<div class="nav-title">СТАТИСТИКА</div>' +
+  '<a href="/?view=stats">Бар</a>' +
+  '<a href="/?view=shiftstats">Расчёт смен</a>' +
+  '<div class="nav-title">АДМИНИСТРИРОВАНИЕ</div>' +
+  '<a href="/?view=staff">Сотрудники</a>' +
+  '<a href="/?view=audit">Действия сотрудников</a>' +
+  '</div>';
+
+s = s.replace(navNeedle, adminNav);
 
 // Убираем сотрудников с главной страницы
 s = s.replace(
