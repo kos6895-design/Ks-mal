@@ -1,0 +1,25 @@
+name: Apply MALINA branding V5
+on:
+  push:
+    paths:
+      - 'scripts/brand-v5.mjs'
+      - 'assets/malina-logo.b64'
+      - '.github/workflows/brand-v5.yml'
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node scripts/brand-v5.mjs
+      - name: Commit worker
+        run: |
+          git config user.name malina-bot
+          git config user.email malina-bot@users.noreply.github.com
+          git add worker-direct.js
+          git diff --cached --quiet || git commit -m "Add MALINA logo branding"
+          git push
