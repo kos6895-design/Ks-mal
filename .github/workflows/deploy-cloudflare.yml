@@ -16,6 +16,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Validate Worker
         run: node --check worker-direct.js
+      # Deploy through wrangler.json so the D1 binding is retained.
       - name: Deploy Worker
         uses: cloudflare/wrangler-action@v3
         with:
