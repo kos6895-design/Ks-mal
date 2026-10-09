@@ -1,0 +1,22 @@
+name: Remove MALINA logo
+on:
+  push:
+    paths:
+      - 'scripts/remove-logo.mjs'
+      - '.github/workflows/remove-logo.yml'
+permissions:
+  contents: write
+jobs:
+  remove-logo:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Remove logo from worker
+        run: node scripts/remove-logo.mjs
+      - name: Commit worker without logo
+        run: |
+          git config user.name "malina-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add worker-direct.js
+          git diff --cached --quiet || git commit -m "Remove MALINA logo from worker UI"
+          git push
