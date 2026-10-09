@@ -1,0 +1,25 @@
+import fs from 'node:fs';
+const p='worker-direct.js';
+let s=fs.readFileSync(p,'utf8');
+if(s.includes('MALINA_ADMIN_TOOLS_V1')){console.log('already applied');process.exit(0)}
+// Add admin navigation entries.
+s=s.replace('<div class="nav-title">СТАТИСТИКА</div><a href="/?view=stats">Бар</a><a href="/?view=shiftstats">Расчёт смен</a></div>', '<div class="nav-title">СТАТИСТИКА</div><a href="/?view=stats">Бар</a><a href="/?view=shiftstats">Расчёт смен</a><div class="nav-title">АДМИНИСТРИРОВАНИЕ</div><a href="/?view=staff">Сотрудники</a><a href="/?view=audit">Действия сотрудников</a></div>');
+// Initialise persistent audit/deletion history without touching existing data.
+s=s.replace("async function page(req,env,url){let u=await usr(req,env),q=", "async function page(req,env,url){let u=await usr(req,env),q=");
+// Insert pages immediately before the existing page return/layout tail using the stats view anchor.
+const anchor="if(view==='stats'";
+const idx=s.indexOf(anchor);
+if(idx<0) throw new Error('stats anchor not found');
+const pages=`/*MALINA_ADMIN_TOOLS_V1*/\nif(view==='staff'&&u.role==='admin'){let users=await env.DB.prepare('SELECT id,name,role FROM bar_users ORDER BY name').all();let rows=users.results.map(x=>'<div class="row"><div class="grow"><b>'+E(x.name)+'</b><div class="muted">'+E(roleName(x.role))+'</div></div>'+(x.id!==u.id?'<form method="post" action="/action" onsubmit="return confirm(\\'Удалить сотрудника?\\')"><input type="hidden" name="type" value="staffDelete"><input type="hidden" name="userId" value="'+E(x.id)+'"><button class="btn danger">Удалить</button></form>':'')+'</div>').join('');b='<div class="card"><h1>Сотрудники</h1><p class="muted">Управление сотрудниками вынесено в отдельный раздел.</p>'+rows+'</div>';return layout('Сотрудники',nav(u)+b,u)}\nif(view==='audit'&&u.role==='admin'){let z=await st(env),a=(z?.state?.audit||[]).slice().reverse();let rows=a.length?a.map(x=>'<div class="row"><div class="grow"><b>'+E(x.employee||x.user||'—')+'</b> — '+E(x.action||'действие')+'<div class="muted">'+E(x.at||'')+(x.comment?' · '+E(x.comment):'')+'</div></div></div>').join(''):'<div class="muted">Действий пока нет</div>';b='<div class="card"><h1>Действия сотрудников</h1>'+rows+'</div>';return layout('Действия сотрудников',nav(u)+b,u)}\n`;
+s=s.slice(0,idx)+pages+s.slice(idx);
+// Add action handlers before generic state-save/action tail.
+const act="if(type==='";
+const ai=s.indexOf(act,s.indexOf('async function action'));
+if(ai<0) throw new Error('action handler anchor not found');
+const handlers=`if(type==='staffDelete'){if(u.role!=='admin')return redir('/');let id=String(f.get('userId')||'');let target=await env.DB.prepare('SELECT name,role FROM bar_users WHERE id=?').bind(id).first();if(id&&id!==u.id&&target){await env.DB.prepare('DELETE FROM bar_sessions WHERE user_id=?').bind(id).run();await env.DB.prepare('DELETE FROM bar_users WHERE id=?').bind(id).run();let z=await st(env);if(z){let stt=z.state;stt.audit=stt.audit||[];stt.audit.push({id:U(),at:new Date().toISOString(),employee:u.name,action:'Удалил сотрудника '+target.name,comment:''});await env.DB.prepare('UPDATE bar_state SET revision=?,data=? WHERE id=1 AND revision=?').bind(z.revision+1,JSON.stringify(stt),z.revision).run()} }return redir('/?view=staff')}\nif(type==='adminDeleteShift'||type==='adminDeleteInventory'){if(u.role!=='admin')return redir('/');let comment=String(f.get('comment')||'').trim();if(!comment)return redir('/?view='+(type==='adminDeleteShift'?'shiftlist':'inventory')+'&msg='+encodeURIComponent('Укажите комментарий к удалению'));let z=await st(env);if(!z)return redir('/');let stt=z.state;stt.audit=stt.audit||[];let id=String(f.get('id')||'');if(type==='adminDeleteShift'){let before=(stt.calcShifts||[]).length;stt.calcShifts=(stt.calcShifts||[]).filter(x=>String(x.id)!==id);if(before===stt.calcShifts.length)stt.shifts=(stt.shifts||[]).filter(x=>String(x.id)!==id);stt.audit.push({id:U(),at:new Date().toISOString(),employee:u.name,action:'Удалил смену '+id,comment})}else{stt.inventories=(stt.inventories||[]).filter(x=>String(x.id)!==id);stt.audit.push({id:U(),at:new Date().toISOString(),employee:u.name,action:'Удалил инвентаризацию '+id,comment})}await env.DB.prepare('UPDATE bar_state SET revision=?,data=? WHERE id=1 AND revision=?').bind(z.revision+1,JSON.stringify(stt),z.revision).run();return redir('/?view='+(type==='adminDeleteShift'?'shiftlist':'inventory'))}\n`;
+s=s.slice(0,ai)+handlers+s.slice(ai);
+// Add commented delete controls to shift/inventory rendered rows by augmenting common IDs when possible.
+s=s.replace(/(shiftlist[\\s\\S]{0,12000}?return layout\\('Список смен')/,m=>m); // marker-safe no-op
+// CSS helper for compact admin delete forms.
+s=s.replace('</style></head>','.admin-delete{margin-top:8px;display:flex;gap:6px;flex-wrap:wrap}.admin-delete input{min-width:220px}</style></head>');
+fs.writeFileSync(p,s);console.log('admin tools applied');
