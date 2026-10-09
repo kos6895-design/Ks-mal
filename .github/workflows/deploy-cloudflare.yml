@@ -1,0 +1,20 @@
+name: Deploy MALINA Bar to Cloudflare
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'worker-direct.js'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy Worker
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: 732eca868669abfd15b245df62cf7573
+          command: deploy worker-direct.js --name malina-bar --compatibility-date 2026-05-15 --keep-vars
