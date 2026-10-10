@@ -4,7 +4,9 @@
   "main": "worker-direct.js",
   "compatibility_date": "2026-05-15",
   "workers_dev": true,
-  "build": { "command": "node scripts/set-logo.mjs" },
+  "build": {
+    "command": "node scripts/set-logo.mjs"
+  },
   "d1_databases": [
     {
       "binding": "DB",
