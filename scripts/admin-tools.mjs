@@ -14,11 +14,26 @@ s=s.split(debts).join(debts+expenses);
 
 const debtMarker="if(view==='debts'&&isAdmin(u)){";
 const currentMarker="if(view==='shiftcalc'&&isAdmin(u)){";
+const expenseMarker="if(view==='calcexpenses'&&isAdmin(u)){";
 const legacyStart="if(view==='shiftlist'&&isAdmin(u)){let closed=(s.shifts||[]).filter(x=>x.closed).slice().reverse();";
 const hallMarker="if(view==='shiftlist'&&isAdmin(u)){let from=url.searchParams.get('from')||'',to=url.searchParams.get('to')||'',all=s.calcShifts||[]";
 
-// The current worker already contains Debts + Current shift. Remove ONLY the legacy
-// BAR shift-list block between its start and the Debts view. Never slice across ZAL views.
+// Restore Debts + Current shift from a verified repository revision that contains both.
+if(!s.includes(debtMarker)||!s.includes(currentMarker)){
+  const verified='360efba040c6f52a026388769c31e89151dc3c4f';
+  const old=spawnSync('git',['show',verified+':worker-direct.js'],{encoding:'utf8'});
+  if(old.status!==0){process.stderr.write(old.stderr||'Cannot read verified worker');process.exit(1)}
+  const base=old.stdout;
+  const d=base.indexOf(debtMarker);
+  const e=base.indexOf(expenseMarker,d);
+  if(d<0||e<0||e<=d){console.error('Verified Debts/Current shift block not found');process.exit(1)}
+  const zalCore=base.slice(d,e);
+  const h=s.indexOf(hallMarker);
+  if(h<0){console.error('Hall shift list insertion point not found');process.exit(1)}
+  s=s.slice(0,h)+zalCore+s.slice(h);
+}
+
+// Remove only the old BAR shift list if it is still present.
 let a=s.indexOf(legacyStart);
 if(a>=0){
   const d=s.indexOf(debtMarker,a);
@@ -26,7 +41,7 @@ if(a>=0){
   s=s.slice(0,a)+s.slice(d);
 }
 
-// ZAL / shiftlist uses only hall calculation shifts and filters by opening date.
+// Convert an older hall list to the filtered hall-only list if needed.
 const shiftStart="if(view==='shiftlist'&&isAdmin(u)){let cs=s.calcShifts||[],n=v=>Number(v||0)";
 const shiftStartNew="if(view==='shiftlist'&&isAdmin(u)){let from=url.searchParams.get('from')||'',to=url.searchParams.get('to')||'',all=s.calcShifts||[],dateOf=x=>x.businessDate||String(x.opened||'').slice(0,10),cs=all.filter(x=>(!from||dateOf(x)>=from)&&(!to||dateOf(x)<=to)),n=v=>Number(v||0)";
 if(s.includes(shiftStart)) s=s.replace(shiftStart,shiftStartNew);
@@ -43,7 +58,6 @@ if(s.includes(head) && !s.includes('http-equiv="Cache-Control"')) s=s.replace(he
 const bodyEnd='</body></html>';
 if(s.includes(bodyEnd) && !s.includes('MALINA UI 2026-11-03 EXPENSES')) s=s.replace(bodyEnd,'<div style="position:fixed;right:6px;bottom:4px;z-index:99;font:9px Arial;color:#777;opacity:.7">MALINA UI 2026-11-03 EXPENSES</div>'+bodyEnd);
 
-// Hard safety checks: never publish a patch that removes another ZAL function.
 const occurrences=(s.match(/view=calcexpenses/g)||[]).length;
 if(occurrences<3){console.error('Expected Expenses route plus links in both admin menus');process.exit(1)}
 if(!s.includes(debtMarker)){console.error('Safety stop: Debts view missing');process.exit(1)}
