@@ -12,16 +12,34 @@ const expenses='<a href="/?view=calcexpenses">Расходы</a>';
 s=s.split(debts+expenses).join(debts);
 s=s.split(debts).join(debts+expenses);
 
-// Remove the legacy BAR shiftlist block completely. It used s.shifts and rendered
-// "Завершённые смены" above the hall list, so both types appeared on one page.
-const legacyStart="if(view==='shiftlist'&&isAdmin(u)){let closed=(s.shifts||[]).filter(x=>x.closed).slice().reverse();";
+// Restore the ZAL views accidentally removed by the previous broad slice.
+// 6b51a0e is the verified version that still contains Debts + Current shift.
+const verified='6b51a0ee5996bf6246f31df764a7089c872d0e55';
+const old=spawnSync('git',['show',verified+':worker-direct.js'],{encoding:'utf8'});
+if(old.status!==0){process.stderr.write(old.stderr||'Cannot read verified worker');process.exit(1)}
+const base=old.stdout;
+const debtMarker="if(view==='debts'&&isAdmin(u)){";
 const hallMarker="if(view==='shiftlist'&&isAdmin(u)){let from=url.searchParams.get('from')||'',to=url.searchParams.get('to')||'',all=s.calcShifts||[]";
-const a=s.indexOf(legacyStart);
-const b=s.indexOf(hallMarker);
-if(a>=0 && b>a) s=s.slice(0,a)+s.slice(b);
+const baseDebt=base.indexOf(debtMarker);
+const baseHall=base.indexOf(hallMarker);
+if(baseDebt<0||baseHall<0||baseHall<=baseDebt){console.error('Verified ZAL block not found');process.exit(1)}
+const zalCore=base.slice(baseDebt,baseHall);
 
-// ZAL / shiftlist must use only hall calculation shifts (calcShifts), never bar shifts,
-// and allow filtering by the business/opening date.
+// Remove only the legacy BAR shiftlist block. Stop at Debts, never at the hall list,
+// so Debts and Current shift cannot be deleted again.
+const legacyStart="if(view==='shiftlist'&&isAdmin(u)){let closed=(s.shifts||[]).filter(x=>x.closed).slice().reverse();";
+let a=s.indexOf(legacyStart);
+if(a>=0){let d=s.indexOf(debtMarker,a);if(d<0){console.error('Debt boundary after legacy list not found');process.exit(1)}s=s.slice(0,a)+s.slice(d)}
+
+// If the previous bad patch already removed the views, restore them immediately
+// before the hall-only shift list.
+if(!s.includes(debtMarker)||!s.includes("if(view==='shiftcalc'&&isAdmin(u)){")){
+  const h=s.indexOf(hallMarker);
+  if(h<0){console.error('Hall shift list insertion point not found');process.exit(1)}
+  s=s.slice(0,h)+zalCore+s.slice(h);
+}
+
+// ZAL / shiftlist uses only hall calculation shifts and filters by opening date.
 const shiftStart="if(view==='shiftlist'&&isAdmin(u)){let cs=s.calcShifts||[],n=v=>Number(v||0)";
 const shiftStartNew="if(view==='shiftlist'&&isAdmin(u)){let from=url.searchParams.get('from')||'',to=url.searchParams.get('to')||'',all=s.calcShifts||[],dateOf=x=>x.businessDate||String(x.opened||'').slice(0,10),cs=all.filter(x=>(!from||dateOf(x)>=from)&&(!to||dateOf(x)<=to)),n=v=>Number(v||0)";
 if(s.includes(shiftStart)) s=s.replace(shiftStart,shiftStartNew);
@@ -43,8 +61,10 @@ const occurrences=(s.match(/view=calcexpenses/g)||[]).length;
 if(occurrences<3){console.error('Expected expenses route plus links in both admin menus');process.exit(1)}
 if(!s.includes("all=s.calcShifts||[]")||!s.includes('Только смены зала')){console.error('Hall shift list/date filter patch missing');process.exit(1)}
 if(s.includes(legacyStart)){console.error('Legacy bar shift list still present');process.exit(1)}
+if(!s.includes(debtMarker)){console.error('Debts view missing');process.exit(1)}
+if(!s.includes("if(view==='shiftcalc'&&isAdmin(u)){")){console.error('Current hall shift view missing');process.exit(1)}
 
 fs.writeFileSync(p,s);
 const check=spawnSync(process.execPath,['--check',p],{encoding:'utf8'});
 if(check.status!==0){process.stderr.write(check.stderr||check.stdout||'Syntax check failed');process.exit(check.status||1)}
-console.log('Fresh UI patch applied: legacy bar shift list removed; ZAL list contains hall shifts only');
+console.log('ZAL verified: Current shift + hall-only Shift list + Debts + Expenses are present');
