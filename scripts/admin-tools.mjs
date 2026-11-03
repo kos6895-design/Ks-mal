@@ -12,6 +12,14 @@ const expenses='<a href="/?view=calcexpenses">Расходы</a>';
 s=s.split(debts+expenses).join(debts);
 s=s.split(debts).join(debts+expenses);
 
+// Remove the legacy BAR shiftlist block completely. It used s.shifts and rendered
+// "Завершённые смены" above the hall list, so both types appeared on one page.
+const legacyStart="if(view==='shiftlist'&&isAdmin(u)){let closed=(s.shifts||[]).filter(x=>x.closed).slice().reverse();";
+const hallMarker="if(view==='shiftlist'&&isAdmin(u)){let from=url.searchParams.get('from')||'',to=url.searchParams.get('to')||'',all=s.calcShifts||[]";
+const a=s.indexOf(legacyStart);
+const b=s.indexOf(hallMarker);
+if(a>=0 && b>a) s=s.slice(0,a)+s.slice(b);
+
 // ZAL / shiftlist must use only hall calculation shifts (calcShifts), never bar shifts,
 // and allow filtering by the business/opening date.
 const shiftStart="if(view==='shiftlist'&&isAdmin(u)){let cs=s.calcShifts||[],n=v=>Number(v||0)";
@@ -34,8 +42,9 @@ if(s.includes(bodyEnd) && !s.includes('MALINA UI 2026-11-03 EXPENSES')) s=s.repl
 const occurrences=(s.match(/view=calcexpenses/g)||[]).length;
 if(occurrences<3){console.error('Expected expenses route plus links in both admin menus');process.exit(1)}
 if(!s.includes("all=s.calcShifts||[]")||!s.includes('Только смены зала')){console.error('Hall shift list/date filter patch missing');process.exit(1)}
+if(s.includes(legacyStart)){console.error('Legacy bar shift list still present');process.exit(1)}
 
 fs.writeFileSync(p,s);
 const check=spawnSync(process.execPath,['--check',p],{encoding:'utf8'});
 if(check.status!==0){process.stderr.write(check.stderr||check.stdout||'Syntax check failed');process.exit(check.status||1)}
-console.log('Fresh UI patch applied: expenses navigation preserved; ZAL shift list uses hall shifts only with date filter');
+console.log('Fresh UI patch applied: legacy bar shift list removed; ZAL list contains hall shifts only');
