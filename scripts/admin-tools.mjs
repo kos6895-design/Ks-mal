@@ -65,6 +65,10 @@ if(!s.includes(currentMarker)){console.error('Safety stop: Current shift view mi
 if(!s.includes("all=s.calcShifts||[]")||!s.includes('Только смены зала')){console.error('Hall-only shift list/date filter missing');process.exit(1)}
 if(s.includes(legacyStart)){console.error('Legacy BAR shift list still present');process.exit(1)}
 
+// Prevent repeated rendering of the hall shift list on future patch runs.
+const hallListMarker="if(view==='shiftlist'&&isAdmin(u)){let from=url.searchParams.get('from')||''";
+if(s.split(hallListMarker).length!==2){console.error('Safety stop: Hall shift list must occur exactly once');process.exit(1)}
+
 fs.writeFileSync(p,s);
 const check=spawnSync(process.execPath,['--check',p],{encoding:'utf8'});
 if(check.status!==0){process.stderr.write(check.stderr||check.stdout||'Syntax check failed');process.exit(check.status||1)}
