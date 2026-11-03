@@ -14,13 +14,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Confirm expenses UI is in deploy source
+        run: |
+          grep -q 'view=calcexpenses' worker-direct.js
+          grep -q 'MALINA UI 2026-11-03 EXPENSES' worker-direct.js
+          echo "Confirmed current main contains expenses UI"
       - name: Validate Worker
         run: node --check worker-direct.js
-      # Deploy through wrangler.json so the D1 binding is retained.
-      - name: Deploy Worker
+      - name: Deploy current main Worker
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: 732eca868669abfd15b245df62cf7573
           command: deploy --config wrangler.json
-      # Deployment marker: cost filter and clearer opening cash UI.
+      # Deployment marker: force current main expenses UI.
